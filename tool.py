@@ -1,22 +1,8 @@
-"""
-Caesar Modulo Tool (stream/file I/O; key-based encrypt/decrypt; brute-force crack)
-
-This tool implements a generalized Caesar cipher over an arbitrary alphabet.
-
-Notes:
-  - Characters not found in the alphabet are preserved unchanged.
-  - This is an educational cipher and not secure for real-world use.
-
-Author: Bryan Jesus Mangapit
-"""
-
 from __future__ import annotations
-
 import argparse
 import sys
 from dataclasses import dataclass
-from typing import Dict, Optional, TextIO
-
+from typing import Dict
 
 DEFAULT_ALPHABET = "abcdefghijklmnopqrstuvwxyz"
 
@@ -30,37 +16,28 @@ class Alphabet:
     @staticmethod
     def from_string(symbols: str) -> "Alphabet":
         symbols = symbols.strip("\n")
-
         if not symbols:
             raise ValueError("Alphabet cannot be empty.")
-
         if len(symbols) < 2:
             raise ValueError("Alphabet must contain at least two unique characters.")
-
         if len(set(symbols)) != len(symbols):
-            # This is critical: duplicates break the bijection char<->index
             raise ValueError("Alphabet must not contain duplicate characters.")
-
         pos = {ch: i for i, ch in enumerate(symbols)}
         return Alphabet(symbols=symbols, pos=pos, m=len(symbols))
 
 
 def transform(text: str, alpha: Alphabet, shift: int) -> str:
-    """Apply Caesar shift using modulo arithmetic."""
     output = []
     for ch in text:
         idx = alpha.pos.get(ch)
         if idx is None:
-            output.append(
-                ch
-            )  # keep unknown symbols (spaces, punctuation, emojis, etc.)
+            output.append(ch)
         else:
             output.append(alpha.symbols[(idx + shift) % alpha.m])
     return "".join(output)
 
 
 def crack_preview(ciphertext: str, alpha: Alphabet) -> str:
-    """Brute-force all possible keys and return candidate plaintexts."""
     results = []
     for k in range(alpha.m):
         candidate = transform(ciphertext, alpha, shift=-k)
@@ -68,66 +45,68 @@ def crack_preview(ciphertext: str, alpha: Alphabet) -> str:
     return "\n".join(results)
 
 
-def open_input(path: Optional[str]) -> TextIO:
+def open_input(path):
     if path:
-        return open(path, "r", encoding="utf-8", errors="replace")
+        try:
+            return open(path, "r", encoding="utf-8", errors="replace")
+        except FileNotFoundError:
+            print(f"Error: input file '{path}' not found.", file=sys.stderr)
+            sys.exit(1)
     return sys.stdin
 
 
-def open_output(path: Optional[str]) -> TextIO:
+def open_output(path):
     if path:
         return open(path, "w", encoding="utf-8", errors="replace")
     return sys.stdout
 
 
-def build_cli() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Generalized Caesar cipher over a configurable alphabet."
-    )
-
-    parser.add_argument(
-        "--alphabet",
-        default=DEFAULT_ALPHABET,
-        help="Alphabet to use (default: lowercase a-z).",
-    )
-
-    parser.add_argument("-f", "--file", help="Input file (default: stdin).")
-    parser.add_argument("-o", "--out", help="Output file (default: stdout).")
-
+def build_cli():
+    parser = argparse.ArgumentParser(description="Generalized Caesar cipher.")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    enc = sub.add_parser("encrypt", help="Encrypt using key k.")
+    # Encrypt
+    enc = sub.add_parser("encrypt")
     enc.add_argument("-k", "--key", type=int, required=True)
+    enc.add_argument("-f", "--file")
+    enc.add_argument("-o", "--out")
+    enc.add_argument("--alphabet", default=DEFAULT_ALPHABET)
 
-    dec = sub.add_parser("decrypt", help="Decrypt using key k.")
+    # Decrypt
+    dec = sub.add_parser("decrypt")
     dec.add_argument("-k", "--key", type=int, required=True)
+    dec.add_argument("-f", "--file")
+    dec.add_argument("-o", "--out")
+    dec.add_argument("--alphabet", default=DEFAULT_ALPHABET)
 
-    sub.add_parser("crack", help="Brute-force all possible keys.")
+    # Crack
+    crack = sub.add_parser("crack")
+    crack.add_argument("-f", "--file")
+    crack.add_argument("-o", "--out")
+    crack.add_argument("--alphabet", default=DEFAULT_ALPHABET)
 
     return parser
 
 
-def main() -> None:
+def main():
     args = build_cli().parse_args()
     alpha = Alphabet.from_string(args.alphabet)
-
     instream = open_input(args.file)
     outstream = open_output(args.out)
-
     try:
-        text = instream.read()
-
+        text = instream.read().rstrip("\n")
         if args.command == "crack":
             outstream.write(crack_preview(text, alpha) + "\n")
+            if args.out:
+                print(f"Added to {args.out}", file=sys.stderr)
             return
-
-        # encrypt/decrypt
         k = args.key % alpha.m
         shift = +k if args.command == "encrypt" else -k
-
         result = transform(text, alpha, shift)
         outstream.write(result)
 
+        if args.out:
+            print(f"Added to {args.out}", file=sys.stderr)
     finally:
         if args.file:
             instream.close()
