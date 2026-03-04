@@ -94,19 +94,21 @@ def main():
     instream = open_input(args.file)
     outstream = open_output(args.out)
     try:
-        text = instream.read().rstrip("\n")
         if args.command == "crack":
+            text = instream.read()
             outstream.write(crack_preview(text, alpha) + "\n")
-            if args.out:
-                print(f"Added to {args.out}", file=sys.stderr)
             return
+
         k = args.key % alpha.m
         shift = +k if args.command == "encrypt" else -k
-        result = transform(text, alpha, shift)
-        outstream.write(result)
 
-        if args.out:
-            print(f"Added to {args.out}", file=sys.stderr)
+        while True:
+            chunk = instream.read(4 * 1024 * 1024)  # 4MB at a time
+            if not chunk:
+                break
+            result = transform(chunk, alpha, shift)
+            outstream.write(result)
+
     finally:
         if args.file:
             instream.close()
