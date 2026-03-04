@@ -107,6 +107,14 @@ def main():
             sys.exit(1)
 
     alpha = Alphabet.from_string(args.alphabet)
+    print(f"[INFO] Command      : {args.command}", file=sys.stderr)
+    print(f"[INFO] Alphabet     : {args.alphabet}", file=sys.stderr)
+    print(f"[INFO] Alphabet size: m = {alpha.m}", file=sys.stderr)
+    if args.command in ("encrypt", "decrypt"):
+        print(f"[INFO] Key          : k = {args.key}", file=sys.stderr)
+        print(f"[INFO] Shift        : {args.key % alpha.m} (k mod m)", file=sys.stderr)
+    print(f"[INFO] Input file   : {args.file or 'stdin'}", file=sys.stderr)
+    print(f"[INFO] Output file  : {args.out or 'stdout'}", file=sys.stderr)
     instream = open_input(args.file)
     outstream = open_output(args.out)
 
