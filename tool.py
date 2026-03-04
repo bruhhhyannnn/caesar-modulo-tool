@@ -71,6 +71,7 @@ def build_cli():
     enc.add_argument("-f", "--file")
     enc.add_argument("-o", "--out")
     enc.add_argument("--alphabet", default=DEFAULT_ALPHABET)
+    enc.add_argument("--alphabet-file", help="Read alphabet from a file.")
 
     # Decrypt
     dec = sub.add_parser("decrypt")
@@ -78,21 +79,37 @@ def build_cli():
     dec.add_argument("-f", "--file")
     dec.add_argument("-o", "--out")
     dec.add_argument("--alphabet", default=DEFAULT_ALPHABET)
+    dec.add_argument("--alphabet-file", help="Read alphabet from a file.")
 
     # Crack
     crack = sub.add_parser("crack")
     crack.add_argument("-f", "--file")
     crack.add_argument("-o", "--out")
     crack.add_argument("--alphabet", default=DEFAULT_ALPHABET)
+    crack.add_argument("--alphabet-file", help="Read alphabet from a file.")
 
     return parser
 
 
 def main():
     args = build_cli().parse_args()
+
+    # Load alphabet from file if provided
+    if args.alphabet_file:
+        try:
+            with open(args.alphabet_file, "r", encoding="utf-8") as f:
+                args.alphabet = f.read().strip("\n")
+        except FileNotFoundError:
+            print(
+                f"Error: alphabet file '{args.alphabet_file}' not found.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
     alpha = Alphabet.from_string(args.alphabet)
     instream = open_input(args.file)
     outstream = open_output(args.out)
+
     try:
         if args.command == "crack":
             text = instream.read()
